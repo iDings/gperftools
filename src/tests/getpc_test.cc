@@ -53,11 +53,19 @@ static void prof_handler(int sig, siginfo_t*, void* signal_ucontext) {
 }
 
 static void RoutineCallingTheSignal() {
+  int ret;
   struct sigaction sa;
   sa.sa_sigaction = prof_handler;
-  sa.sa_flags = SA_RESTART | SA_SIGINFO;
   sigemptyset(&sa.sa_mask);
-  if (sigaction(SIGPROF, &sa, NULL) != 0) {
+
+#ifdef __QNXNTO__
+  sa.sa_flags = SA_SIGINFO;
+  ret = sigaction(SIGALRM, &sa, NULL);
+#else
+  sa.sa_flags = SA_RESTART | SA_SIGINFO;
+  ret = sigaction(SIGPROF, &sa, NULL);
+#endif
+  if (ret != 0) {
     perror("sigaction");
     exit(1);
   }
@@ -66,7 +74,11 @@ static void RoutineCallingTheSignal() {
   timer.it_interval.tv_sec = 0;
   timer.it_interval.tv_usec = 1000;
   timer.it_value = timer.it_interval;
+#ifdef __QNXNTO__
+  setitimer(ITIMER_REAL, &timer, 0);
+#else
   setitimer(ITIMER_PROF, &timer, 0);
+#endif
 
   // Now we need to do some work for a while, that doesn't call any
   // other functions, so we can be guaranteed that when the SIGPROF

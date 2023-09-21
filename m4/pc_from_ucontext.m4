@@ -46,6 +46,10 @@ AC_DEFUN([AC_PC_FROM_UCONTEXT],
    pc_fields="$pc_fields uc_mcontext->ss.srr0"         # OS X (ppc, ppc64 [untested])
    pc_fields="$pc_fields uc_mcontext->__ss.__srr0"     # OS X (>=10.5 [untested])
    pc_fields="$pc_fields uc_mcontext->__ss.__pc"       # OS X (arm64)
+   pc_fields="$pc_fields uc_mcontext.cpu.eip"          # QNX (7.1 x86 [untested])
+   pc_fileds="$pc_fields uc_mcontext.gpr[[ARM_REG_PC]]"  # QNX (7.1 arm [untested])
+   pc_fields="$pc_fields uc_mcontext.cpu.rip"          # QNX (7.1 x86_64)
+   pc_fields="$pc_fields uc_mcontext.cpu.elr"          # QNX (7.1 aarch64)
    pc_field_found=false
    for pc_field in $pc_fields; do
      if ! $pc_field_found; then

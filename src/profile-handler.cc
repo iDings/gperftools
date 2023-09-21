@@ -73,6 +73,11 @@
 #define sigev_notify_thread_id _sigev_un._tid
 #endif
 
+// For some system don't have SA_RESTART such as QNX
+#ifndef SA_RESTART
+#define SA_RESTART 0
+#endif
+
 using std::list;
 using std::string;
 
@@ -329,7 +334,13 @@ ProfileHandler::ProfileHandler()
       per_thread_timer_enabled_(false) {
   SpinLockHolder cl(&control_lock_);
 
+#if defined(__QNXNTO__)
+  // https://www.qnx.com/developers/docs/7.1/#com.qnx.doc.neutrino.lib_ref/topic/s/signalaction.html
+  // SIGPROF is obsoleted on QNX
+  timer_type_ = ITIMER_REAL;
+#else
   timer_type_ = (getenv("CPUPROFILE_REALTIME") ? ITIMER_REAL : ITIMER_PROF);
+#endif
   signal_number_ = (timer_type_ == ITIMER_PROF ? SIGPROF : SIGALRM);
 
   // Get frequency of interrupts (if specified)
