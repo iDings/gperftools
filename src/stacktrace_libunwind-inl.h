@@ -45,11 +45,18 @@ extern "C" {
 #include <assert.h>
 #include <string.h>   // for memset()
 #include <libunwind.h>
+#include <pthread.h>
 }
 #include "gperftools/stacktrace.h"
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+
+#ifndef HAVE_PERFTOOLS_PTHREAD_KEYS
+#define perftools_pthread_getspecific pthread_getspecific
+#define perftools_pthread_setspecific pthread_setspecific
+#define perftools_pthread_key_create pthread_key_create
+#endif
 
 // Sometimes, we can try to get a stack trace from within a stack
 // trace, because libunwind can call mmap (maybe indirectly via an
@@ -58,7 +65,38 @@ extern "C" {
 // recursive request, we'd end up with infinite recursion or deadlock.
 // Luckily, it's safe to ignore those subsequent traces.  In such
 // cases, we return 0 to indicate the situation.
+#ifdef HAVE_TLS
 static __thread int recursive ATTR_INITIAL_EXEC;
+#else
+// XXX: need an better implement
+class ThreadCounter {
+public:
+  ThreadCounter() {
+    pthread_key_create(&recursive_key_, NULL);
+  }
+  ~ThreadCounter() {
+  }
+  operator int() const {
+    return reinterpret_cast<intptr_t>(perftools_pthread_getspecific(recursive_key_));
+  }
+  // ThreadCounter only useful for current thread, return ThreadCounter is useless?
+  // post-increase is also useless.
+  void operator++() {
+    int counter = reinterpret_cast<intptr_t>(perftools_pthread_getspecific(recursive_key_));
+    ++counter;
+    perftools_pthread_setspecific(recursive_key_, reinterpret_cast<void*>(counter));
+  }
+  void operator--() {
+    int counter = reinterpret_cast<intptr_t>(perftools_pthread_getspecific(recursive_key_));
+    --counter;
+    perftools_pthread_setspecific(recursive_key_, reinterpret_cast<void*>(counter));
+  }
+
+private:
+  pthread_key_t recursive_key_;
+};
+static ThreadCounter recursive;
+#endif
 
 #if defined(TCMALLOC_ENABLE_UNWIND_FROM_UCONTEXT) && (defined(__i386__) || defined(__x86_64__)) && defined(__GNU_LIBRARY__)
 #define BASE_STACKTRACE_UNW_CONTEXT_IS_UCONTEXT 1
