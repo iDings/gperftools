@@ -58,7 +58,9 @@ extern "C" {
 // recursive request, we'd end up with infinite recursion or deadlock.
 // Luckily, it's safe to ignore those subsequent traces.  In such
 // cases, we return 0 to indicate the situation.
+#ifdef HAVE_TLS
 static __thread int recursive ATTR_INITIAL_EXEC;
+#endif
 
 #if defined(TCMALLOC_ENABLE_UNWIND_FROM_UCONTEXT) && (defined(__i386__) || defined(__x86_64__)) && defined(__GNU_LIBRARY__)
 #define BASE_STACKTRACE_UNW_CONTEXT_IS_UCONTEXT 1
@@ -89,10 +91,12 @@ static int GET_STACK_TRACE_OR_FRAMES {
   unw_word_t sp = 0, next_sp = 0;
 #endif
 
+#ifdef HAVE_TLS
   if (recursive) {
     return 0;
   }
   ++recursive;
+#endif
 
 #if (IS_WITH_CONTEXT && defined(BASE_STACKTRACE_UNW_CONTEXT_IS_UCONTEXT))
   if (ucp) {
@@ -147,6 +151,8 @@ static int GET_STACK_TRACE_OR_FRAMES {
 #endif
   }
 out:
+#ifdef HAVE_TLS
   --recursive;
+#endif
   return n;
 }
